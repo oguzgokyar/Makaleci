@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WPAISG_VERSION', '1.0.6' );
+define( 'WPAISG_VERSION', '1.0.7' );
 define( 'WPAISG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPAISG_URL', plugin_dir_url( __FILE__ ) );
 
@@ -129,7 +129,7 @@ class WPAIServiceGenerator {
         $language = get_option( 'wpaisg_language', 'Turkish' );
         $company_phone = get_option( 'wpaisg_company_phone' );
         $language = get_option( 'wpaisg_language', 'Turkish' );
-        $model = trim( get_option( 'wpaisg_model', 'gemini-1.5-flash' ) ); // Trim whitespace
+        $model = trim( get_option( 'wpaisg_model', 'gemini-2.5-flash' ) ); // Default to 2.5 Flash
 
         // Construct Prompt
         $prompt = "You are an expert Local SEO Copywriter. Write a WordPress Service Page content in {$language}.\n";
@@ -210,7 +210,7 @@ class WPAIServiceGenerator {
 	}
 
     private function call_gemini_api( $api_key, $model, $prompt ) {
-        $url = "https://generativelanguage.googleapis.com/v1/models/{$model}:generateContent?key={$api_key}";
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$api_key}";
 
         $body = array(
             'contents' => array(
@@ -363,11 +363,11 @@ class WPAIServiceGenerator {
                             <th scope="row">Model</th>
                             <td>
                                 <select name="wpaisg_model">
-                                    <option value="gemini-1.5-flash" <?php selected( get_option('wpaisg_model'), 'gemini-1.5-flash' ); ?>>Gemini 1.5 Flash (Önerilen)</option>
-                                    <option value="gemini-1.5-pro" <?php selected( get_option('wpaisg_model'), 'gemini-1.5-pro' ); ?>>Gemini 1.5 Pro</option>
-                                    <option value="gemini-1.0-pro" <?php selected( get_option('wpaisg_model'), 'gemini-1.0-pro' ); ?>>Gemini 1.0 Pro (Stable)</option>
+                                    <option value="gemini-2.5-flash" <?php selected( get_option('wpaisg_model'), 'gemini-2.5-flash' ); ?>>Gemini 2.5 Flash (Önerilen - En Hızlı)</option>
+                                    <option value="gemini-3-flash-preview" <?php selected( get_option('wpaisg_model'), 'gemini-3-flash-preview' ); ?>>Gemini 3 Flash Preview (En Yeni)</option>
+                                    <option value="gemini-2.5-pro" <?php selected( get_option('wpaisg_model'), 'gemini-2.5-pro' ); ?>>Gemini 2.5 Pro (Yüksek Kalite)</option>
                                 </select>
-                                <p class="description">Gemini 1.5 Flash hızlı ve ekonomiktir (tavsiye edilir).</p>
+                                <p class="description">Gemini 2.5 Flash hızlı ve ekonomiktir (2026 güncel modeller).</p>
                             </td>
                         </tr>
                         <tr valign="top">
