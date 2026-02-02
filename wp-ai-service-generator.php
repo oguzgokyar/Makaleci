@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WPAISG_VERSION', '1.0.1' );
+define( 'WPAISG_VERSION', '1.0.4' );
 define( 'WPAISG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPAISG_URL', plugin_dir_url( __FILE__ ) );
 
@@ -42,7 +42,8 @@ class WPAIServiceGenerator {
     }
 
     public function enqueue_admin_scripts( $hook ) {
-        if ( 'toplevel_page_wp-ai-service-generator' !== $hook ) {
+        // Load on ALL pages that belong to this plugin (both Generator and Settings)
+        if ( strpos( $hook, 'wp-ai-service-generator' ) === false ) {
             return;
         }
 
@@ -365,8 +366,8 @@ class WPAIServiceGenerator {
                                     <option value="gemini-1.5-flash" <?php selected( get_option('wpaisg_model'), 'gemini-1.5-flash' ); ?>>Gemini 1.5 Flash (Önerilen)</option>
                                     <option value="gemini-1.5-pro" <?php selected( get_option('wpaisg_model'), 'gemini-1.5-pro' ); ?>>Gemini 1.5 Pro</option>
                                     <option value="gemini-1.0-pro" <?php selected( get_option('wpaisg_model'), 'gemini-1.0-pro' ); ?>>Gemini 1.0 Pro (Stable)</option>
-                                    <option value="gemini-2.0-flash-exp" <?php selected( get_option('wpaisg_model'), 'gemini-2.0-flash-exp' ); ?>>Gemini 2.0 Flash (Experimental)</option>
                                 </select>
+                                <p class="description">Gemini 1.5 Flash hızlı ve ekonomiktir (tavsiye edilir).</p>
                             </td>
                         </tr>
                         <tr valign="top">
@@ -453,32 +454,53 @@ class WPAIServiceGenerator {
         check_ajax_referer( 'wpaisg-generate-nonce', 'nonce' );
 
         $repo = get_option( 'wpaisg_github_repo' );
-        $token = get_option( 'wpaisg_github_token' );
-
         if ( empty( $repo ) ) {
-            wp_send_json_error( array( 'message' => 'Lütfen önce GitHub deposunu ayarlayın.' ) );
+            wp_send_json_error( array( 'message' => 'GitHub deposu ayarlanmamış.' ) );
         }
 
-        // Force check logic (simplified)
-        // We duplicates logic here for the AJAX check since we want an immediate response
-        
+        // Clean the repo input - remove any URLs, just get username/repo
+        $repo = trim( $repo );
+        $repo = str_replace( 'https://github.com/', '', $repo );
+        $repo = str_replace( 'http://github.com/', '', $repo );
+        $repo = rtrim( $repo, '/' );
+
+        // Validate format: must be "username/reponame"
+        if ( substr_count( $repo, '/' ) !== 1 ) {
+            wp_send_json_error( array( 'message' => 'Geçersiz repo formatı. Örnek: "kullanıcıadı/repo-adı"' ) );
+        }
+
+        $token = get_option( 'wpaisg_github_token' );
         $url = "https://api.github.com/repos/{$repo}/releases/latest";
-        $args = array( 'timeout' => 10 );
+
+        $args = array(
+            'timeout' => 15,
+            'headers' => array(
+                'User-Agent' => 'WordPress-Plugin-Updater'
+            )
+        );
+
         if ( ! empty( $token ) ) {
-            $args['headers'] = array( 'Authorization' => "token {$token}" );
+            $args['headers']['Authorization'] = 'token ' . $token;
         }
 
         $response = wp_remote_get( $url, $args );
 
         if ( is_wp_error( $response ) ) {
-            wp_send_json_error( array( 'message' => 'GitHub bağlantı hatası: ' . $response->get_error_message() ) );
+            wp_send_json_error( array( 'message' => 'Bağlantı hatası: ' . $response->get_error_message() ) );
         }
 
         $code = wp_remote_retrieve_response_code( $response );
-        if ( $code !== 200 ) {
-             wp_send_json_error( array( 'message' => "GitHub Hatası ($code). Depo gizli olabilir veya limit aşılmış olabilir." ) );
+        if ( $code === 404 ) {
+            wp_send_json_error( array( 'message' => 'Depo bulunamadı. Repo adını kontrol edin: "' . esc_html($repo) . '"' ) );
         }
 
+        if ( $code !== 200 ) {
+            $body = wp_remote_retrieve_body( $response );
+            $error_data = json_decode( $body, true );
+            $error_msg = isset( $error_data['message'] ) ? $error_data['message'] : 'Bilinmeyen hata';
+            wp_send_json_error( array( 'message' => "GitHub Hatası ({$code}): {$error_msg}" ) );
+        }
+        
         $release = json_decode( wp_remote_retrieve_body( $response ), true );
         
         if ( ! $release ) {
