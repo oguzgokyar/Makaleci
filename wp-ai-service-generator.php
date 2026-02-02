@@ -37,7 +37,8 @@ class WPAIServiceGenerator {
 		
         add_action( 'wp_ajax_wpaisg_generate_content', array( $this, 'wpaisg_handle_ajax_generate' ) );
         add_action( 'wp_ajax_wpaisg_check_updates', array( $this, 'wpaisg_handle_ajax_check_updates' ) );
-	}
+        add_action( 'wp_ajax_wpaisg_test_api', array( $this, 'wpaisg_handle_ajax_test_api' ) );
+    }
 
     public function enqueue_admin_scripts( $hook ) {
         if ( 'toplevel_page_wp-ai-service-generator' !== $hook ) {
@@ -124,7 +125,9 @@ class WPAIServiceGenerator {
         $company_address = get_option( 'wpaisg_company_address' );
         $company_phone = get_option( 'wpaisg_company_phone' );
         $language = get_option( 'wpaisg_language', 'Turkish' );
-        $model = get_option( 'wpaisg_model', 'gemini-1.5-flash' );
+        $company_phone = get_option( 'wpaisg_company_phone' );
+        $language = get_option( 'wpaisg_language', 'Turkish' );
+        $model = trim( get_option( 'wpaisg_model', 'gemini-1.5-flash' ) ); // Trim whitespace
 
         // Construct Prompt
         $prompt = "You are an expert Local SEO Copywriter. Write a WordPress Service Page content in {$language}.\n";
@@ -241,7 +244,17 @@ class WPAIServiceGenerator {
 
         if ( $code !== 200 ) {
             error_log( 'WPAISG API Error: ' . $code . ' - ' . $body );
-            return new WP_Error( 'api_error', "API Hatası ($code): " . wp_remote_retrieve_response_message($response) );
+            $error_message = "API Hatası ($code).";
+            
+            // Try to extract detailed message from Google API response
+            $response_json = json_decode( $body, true );
+            if ( isset( $response_json['error']['message'] ) ) {
+                $error_message .= " Detay: " . $response_json['error']['message'];
+            } else {
+                $error_message .= " Yanıt: " . strip_tags( substr($body, 0, 200) ) . "...";
+            }
+
+            return new WP_Error( 'api_error', $error_message );
         }
 
         $data = json_decode( $body, true );
@@ -260,51 +273,60 @@ class WPAIServiceGenerator {
             <p class="description">Google Gemini AI kullanarak Lokal SEO uyumlu hizmet yazıları oluşturun.</p>
             <hr>
             
-            <div id="wpaisg-result"></div>
+            <div class="wpaisg-container">
+                <!-- LEFT PANEL: FORM -->
+                <div class="wpaisg-left-panel">
+                    <h3>İçerik Ayarları</h3>
+                    <form id="wpaisg-generator-form">
+                        <table class="form-table" style="margin-top: 0;">
+                            <tr valign="top">
+                                <th scope="row"><label for="wpaisg-service">Hizmet Adı</label></th>
+                                <td>
+                                    <input type="text" id="wpaisg-service" name="service" class="large-text" placeholder="Örn: Klima Tamiri, Evden Eve Nakliyat" required />
+                                    <p class="description">Ana hizmet konusu.</p>
+                                </td>
+                            </tr>
+                            <tr valign="top">
+                                <th scope="row"><label for="wpaisg-location">Lokasyon (İl/İlçe)</label></th>
+                                <td>
+                                    <input type="text" id="wpaisg-location" name="location" class="large-text" placeholder="Örn: Bayrampaşa, İstanbul" required />
+                                    <p class="description">Hedeflenen bölge.</p>
+                                </td>
+                            </tr>
+                            <tr valign="top">
+                                <th scope="row"><label for="wpaisg-category">Kategori</label></th>
+                                <td>
+                                    <?php
+                                    wp_dropdown_categories( array(
+                                        'name' => 'category',
+                                        'id'   => 'wpaisg-category',
+                                        'show_option_none' => 'Kategori Seçin',
+                                        'class' => 'regular-text',
+                                        'hide_empty' => 0,
+                                    ) );
+                                    ?>
+                                </td>
+                            </tr>
+                            <tr valign="top">
+                                <th scope="row"><label for="wpaisg-keywords">SEO Anahtar Kelimeler</label></th>
+                                <td>
+                                    <textarea id="wpaisg-keywords" name="keywords" class="large-text" rows="3" placeholder="Örn: klima servisi, klima montajı, acil tamir"></textarea>
+                                </td>
+                            </tr>
+                        </table>
+                        <p class="submit" style="padding-top: 10px;">
+                            <button type="submit" class="button button-primary button-large" style="width: 100%;">İçerik Oluştur</button>
+                        </p>
+                    </form>
+                </div>
 
-            <div class="card" style="max-width: 800px; padding: 20px; margin-top: 20px;">
-                <form id="wpaisg-generator-form">
-                    <table class="form-table">
-                        <tr valign="top">
-                            <th scope="row"><label for="wpaisg-service">Hizmet Adı</label></th>
-                            <td>
-                                <input type="text" id="wpaisg-service" name="service" class="large-text" placeholder="Örn: Klima Tamiri, Evden Eve Nakliyat" required />
-                                <p class="description">Ana hizmet konusu.</p>
-                            </td>
-                        </tr>
-                        <tr valign="top">
-                            <th scope="row"><label for="wpaisg-location">Lokasyon (İl/İlçe)</label></th>
-                            <td>
-                                <input type="text" id="wpaisg-location" name="location" class="large-text" placeholder="Örn: Bayrampaşa, İstanbul" required />
-                                <p class="description">Hedeflenen bölge. İçerik ve başlık bu bölgeye göre optimize edilir.</p>
-                            </td>
-                        </tr>
-                        <tr valign="top">
-                            <th scope="row"><label for="wpaisg-category">Kategori</label></th>
-                            <td>
-                                <?php
-                                wp_dropdown_categories( array(
-                                    'name' => 'category',
-                                    'id'   => 'wpaisg-category',
-                                    'show_option_none' => 'Kategori Seçin',
-                                    'class' => 'regular-text',
-                                    'hide_empty' => 0,
-                                ) );
-                                ?>
-                            </td>
-                        </tr>
-                        <tr valign="top">
-                            <th scope="row"><label for="wpaisg-keywords">SEO Anahtar Kelimeler</label></th>
-                            <td>
-                                <textarea id="wpaisg-keywords" name="keywords" class="large-text" rows="2" placeholder="Örn: klima servisi, klima montajı, acil tamir"></textarea>
-                                <p class="description">Virgülle ayırarak girin. Bunlar WP Etiketi olarak eklenecek ve içerikte kullanılacak.</p>
-                            </td>
-                        </tr>
-                    </table>
-                    <p class="submit">
-                        <button type="submit" class="button button-primary button-large">İçerik Oluştur</button>
-                    </p>
-                </form>
+                <!-- RIGHT PANEL: RESULT -->
+                <div class="wpaisg-right-panel">
+                    <div class="wpaisg-preview-header">Sonuç / Önizleme</div>
+                    <div id="wpaisg-result">
+                        <p class="description">Oluşturulan içerik ve durum bilgisi burada görünecektir.</p>
+                    </div>
+                </div>
             </div>
 		</div>
 		<?php
@@ -331,6 +353,8 @@ class WPAIServiceGenerator {
                             <td>
                                 <input type="text" name="wpaisg_gemini_api_key" value="<?php echo esc_attr( get_option('wpaisg_gemini_api_key') ); ?>" class="regular-text" />
                                 <p class="description"><a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> üzerinden alabilirsiniz.</p>
+                                <button type="button" id="wpaisg-test-api" class="button button-secondary" style="margin-top: 5px;">Bağlantıyı Test Et</button>
+                                <div id="wpaisg-api-test-result" style="margin-top: 5px; font-weight: bold;"></div>
                             </td>
                         </tr>
                         <tr valign="top">
@@ -339,6 +363,7 @@ class WPAIServiceGenerator {
                                 <select name="wpaisg_model">
                                     <option value="gemini-1.5-flash" <?php selected( get_option('wpaisg_model'), 'gemini-1.5-flash' ); ?>>Gemini 1.5 Flash (Önerilen)</option>
                                     <option value="gemini-1.5-pro" <?php selected( get_option('wpaisg_model'), 'gemini-1.5-pro' ); ?>>Gemini 1.5 Pro</option>
+                                    <option value="gemini-1.0-pro" <?php selected( get_option('wpaisg_model'), 'gemini-1.0-pro' ); ?>>Gemini 1.0 Pro (Stable)</option>
                                     <option value="gemini-2.0-flash-exp" <?php selected( get_option('wpaisg_model'), 'gemini-2.0-flash-exp' ); ?>>Gemini 2.0 Flash (Experimental)</option>
                                 </select>
                             </td>
@@ -476,6 +501,28 @@ class WPAIServiceGenerator {
                 'message' => "Eklentiniz güncel (v{$current_version})."
             ) );
         }
+    }
+
+    public function wpaisg_handle_ajax_test_api() {
+        check_ajax_referer( 'wpaisg-generate-nonce', 'nonce' );
+
+        $api_key = get_option( 'wpaisg_gemini_api_key' );
+        $model = trim( get_option( 'wpaisg_model', 'gemini-1.5-flash' ) );
+
+        if ( empty( $api_key ) ) {
+            wp_send_json_error( array( 'message' => 'API Anahtarı girilmemiş.' ) );
+        }
+
+        // Simple prompt to test connection
+        $prompt = "Hello, are you active? Reply with 'Yes'.";
+        
+        $response = $this->call_gemini_api( $api_key, $model, $prompt );
+
+        if ( is_wp_error( $response ) ) {
+            wp_send_json_error( array( 'message' => $response->get_error_message() ) );
+        }
+
+        wp_send_json_success( array( 'message' => "Bağlantı Başarılı! ($model yanıt verdi)" ) );
     }
 }
 

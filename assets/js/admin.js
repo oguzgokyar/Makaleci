@@ -84,4 +84,32 @@ jQuery(document).ready(function ($) {
             $result.html('<div class="wpaisg-result-box wpaisg-error-box" style="padding:10px; margin:0;"><p>Sunucu hatası.</p></div>');
         });
     });
+
+    // Test API Handler
+    $('#wpaisg-test-api').on('click', function (e) {
+        e.preventDefault();
+        var $btn = $(this);
+        var $result = $('#wpaisg-api-test-result');
+        var originalText = $btn.text();
+
+        $btn.prop('disabled', true).html('<span class="wpaisg-spinner"></span>');
+        $result.html('');
+
+        $.post(wpaisg_ajax.ajax_url, {
+            action: 'wpaisg_test_api',
+            nonce: wpaisg_ajax.nonce
+        }, function (response) {
+            $btn.prop('disabled', false).text(originalText);
+
+            if (response && response.success) {
+                $result.html('<span style="color: green;">' + response.data.message + '</span>');
+            } else {
+                var errorMsg = (response && response.data && response.data.message) ? response.data.message : 'Hata oluştu.';
+                $result.html('<span style="color: red;">' + errorMsg + '</span>');
+            }
+        }).fail(function () {
+            $btn.prop('disabled', false).text(originalText);
+            $result.html('<span style="color: red;">Sunucu bağlantı hatası.</span>');
+        });
+    });
 });
