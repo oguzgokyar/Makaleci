@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WPAISG_VERSION', '1.0.9' );
+define( 'WPAISG_VERSION', '1.1.0' );
 define( 'WPAISG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPAISG_URL', plugin_dir_url( __FILE__ ) );
 

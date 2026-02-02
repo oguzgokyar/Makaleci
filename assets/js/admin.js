@@ -32,10 +32,8 @@ jQuery(document).ready(function ($) {
                 var content = response.data.content || '';
                 var postId = response.data.post_id;
 
-                var message = '<h3>Taslak Oluşturuldu!</h3>' +
-                    '<p><strong>' + title + '</strong></p>' +
-                    '<p><a href="' + editUrl + '" target="_blank" class="button button-primary">WordPress\'te Aç</a></p>';
-                $result.html(message).addClass('wpaisg-result-box wpaisg-success-box');
+                // Clear result message - just show editor
+                $result.html('').removeClass('wpaisg-result-box wpaisg-success-box wpaisg-error-box');
 
                 // Load into editor
                 $('#wpaisg-editor-title').text(title);
