@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WPAISG_VERSION', '1.0.5' );
+define( 'WPAISG_VERSION', '1.0.6' );
 define( 'WPAISG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPAISG_URL', plugin_dir_url( __FILE__ ) );
 
@@ -210,7 +210,7 @@ class WPAIServiceGenerator {
 	}
 
     private function call_gemini_api( $api_key, $model, $prompt ) {
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$api_key}";
+        $url = "https://generativelanguage.googleapis.com/v1/models/{$model}:generateContent?key={$api_key}";
 
         $body = array(
             'contents' => array(
