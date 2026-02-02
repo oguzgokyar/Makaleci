@@ -1,0 +1,55 @@
+/* Admin Styles for AI Service Generator */
+
+/* Spinner */
+.wpaisg-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #2271b1;
+    animation: wpaisg-spin 1s ease-in-out infinite;
+    vertical-align: middle;
+    margin-right: 10px;
+}
+
+@keyframes wpaisg-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Result Boxes */
+.wpaisg-result-box {
+    margin: 20px 0;
+    padding: 15px;
+    border-left: 4px solid;
+    background: #fff;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+}
+
+.wpaisg-success-box {
+    border-left-color: #46b450;
+    background-color: #f0fbf2;
+}
+
+.wpaisg-error-box {
+    border-left-color: #dc3232;
+    background-color: #fcf0f0;
+}
+
+.wpaisg-info-box {
+    border-left-color: #2271b1;
+    background-color: #f0f6fc;
+}
+
+/* Form Elements */
+#wpaisg-generator-form {
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #c3c4c7;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+    max-width: 800px;
+}
+
+.wpaisg-check-updates-btn {
+    margin-top: 10px !important;
+}

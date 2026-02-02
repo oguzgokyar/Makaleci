@@ -36,6 +36,7 @@ class WPAIServiceGenerator {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
 		
         add_action( 'wp_ajax_wpaisg_generate_content', array( $this, 'wpaisg_handle_ajax_generate' ) );
+        add_action( 'wp_ajax_wpaisg_check_updates', array( $this, 'wpaisg_handle_ajax_check_updates' ) );
 	}
 
     public function enqueue_admin_scripts( $hook ) {
@@ -43,6 +44,7 @@ class WPAIServiceGenerator {
             return;
         }
 
+        wp_enqueue_style( 'wpaisg-admin-css', WPAISG_URL . 'assets/css/admin.css', array(), WPAISG_VERSION );
         wp_enqueue_script( 'wpaisg-admin-js', WPAISG_URL . 'assets/js/admin.js', array( 'jquery' ), WPAISG_VERSION, true );
         wp_localize_script( 'wpaisg-admin-js', 'wpaisg_ajax', array(
             'ajax_url' => admin_url( 'admin-ajax.php' ),
@@ -197,6 +199,7 @@ class WPAIServiceGenerator {
 
         wp_send_json_success( array( 
             'post_id' => $post_id,
+            'title'   => sanitize_text_field( $result['title'] ),
             'edit_url' => get_edit_post_link( $post_id, 'raw' ) 
         ) );
 	}
@@ -387,6 +390,13 @@ class WPAIServiceGenerator {
                             <th scope="row">Mevcut Sürüm</th>
                             <td><code><?php echo WPAISG_VERSION; ?></code></td>
                         </tr>
+                        <tr valign="top">
+                            <th scope="row">Güncellemeler</th>
+                            <td>
+                                <button type="button" id="wpaisg-check-updates" class="button button-secondary wpaisg-check-updates-btn">Güncellemeleri Şimdi Kontrol Et</button>
+                                <div id="wpaisg-update-result" style="margin-top: 10px;"></div>
+                            </td>
+                        </tr>
                     </table>
                 </div>
 
@@ -412,6 +422,61 @@ class WPAIServiceGenerator {
 		</div>
 		<?php
 	}
+
+    public function wpaisg_handle_ajax_check_updates() {
+        check_ajax_referer( 'wpaisg-generate-nonce', 'nonce' );
+
+        $repo = get_option( 'wpaisg_github_repo' );
+        $token = get_option( 'wpaisg_github_token' );
+
+        if ( empty( $repo ) ) {
+            wp_send_json_error( array( 'message' => 'Lütfen önce GitHub deposunu ayarlayın.' ) );
+        }
+
+        // Force check logic (simplified)
+        // We duplicates logic here for the AJAX check since we want an immediate response
+        
+        $url = "https://api.github.com/repos/{$repo}/releases/latest";
+        $args = array( 'timeout' => 10 );
+        if ( ! empty( $token ) ) {
+            $args['headers'] = array( 'Authorization' => "token {$token}" );
+        }
+
+        $response = wp_remote_get( $url, $args );
+
+        if ( is_wp_error( $response ) ) {
+            wp_send_json_error( array( 'message' => 'GitHub bağlantı hatası: ' . $response->get_error_message() ) );
+        }
+
+        $code = wp_remote_retrieve_response_code( $response );
+        if ( $code !== 200 ) {
+             wp_send_json_error( array( 'message' => "GitHub Hatası ($code). Depo gizli olabilir veya limit aşılmış olabilir." ) );
+        }
+
+        $release = json_decode( wp_remote_retrieve_body( $response ), true );
+        
+        if ( ! $release ) {
+            wp_send_json_error( array( 'message' => 'Sürüm bilgisi alınamadı.' ) );
+        }
+
+        $latest_version = $release['tag_name'];
+        $current_version = WPAISG_VERSION;
+
+        if ( version_compare( $latest_version, $current_version, '>' ) ) {
+            wp_send_json_success( array( 
+                'status' => 'update_available',
+                'version' => $latest_version,
+                'message' => "Yeni sürüm mevcut: <strong>{$latest_version}</strong>",
+                'update_url' => admin_url( 'update-core.php' ) // Direct user to WP updates page
+            ) );
+        } else {
+             wp_send_json_success( array( 
+                'status' => 'up_to_date',
+                'version' => $latest_version,
+                'message' => "Eklentiniz güncel (v{$current_version})."
+            ) );
+        }
+    }
 }
 
 // Initialize the plugin
@@ -517,3 +582,5 @@ class WPAISG_GitHub_Updater {
         return json_decode( wp_remote_retrieve_body( $response ), true );
     }
 }
+
+
