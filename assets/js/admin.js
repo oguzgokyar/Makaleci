@@ -85,6 +85,44 @@ jQuery(document).ready(function ($) {
         });
     });
 
+    // Perform Update Handler
+    $(document).on('click', '.wpaisg-perform-update', function (e) {
+        e.preventDefault();
+        var $btn = $(this);
+        var zipUrl = $btn.data('zip');
+        var $result = $('#wpaisg-update-result');
+
+        if (!confirm('Eklenti güncellenecek ve sayfa yenilenecek. Onaylıyor musunuz?')) {
+            return;
+        }
+
+        $btn.prop('disabled', true).html('<span class="wpaisg-spinner"></span> Güncelleniyor...');
+
+        // Visual feedback stages
+        $result.append('<p class="exclude-result"><em>Paket indiriliyor...</em></p>');
+
+        $.post(wpaisg_ajax.ajax_url, {
+            action: 'wpaisg_perform_update',
+            nonce: wpaisg_ajax.nonce,
+            zip_url: zipUrl
+        }, function (response) {
+            if (response && response.success) {
+                $result.find('.exclude-result').remove();
+                $result.append('<p style="color:green; font-weight:bold;">' + response.data.message + '</p>');
+                setTimeout(function () {
+                    location.reload();
+                }, 2000);
+            } else {
+                var errorMsg = (response && response.data && response.data.message) ? response.data.message : 'Güncelleme hatası.';
+                $result.html('<div class="wpaisg-result-box wpaisg-error-box" style="padding:10px; margin:0;"><p>' + errorMsg + '</p></div>');
+                $btn.prop('disabled', false).text('Tekrar Dene');
+            }
+        }).fail(function () {
+            $result.html('<div class="wpaisg-result-box wpaisg-error-box" style="padding:10px; margin:0;"><p>Sunucu hatası (Zaman aşımı olabilir).</p></div>');
+            $btn.prop('disabled', false).text('Tekrar Dene');
+        });
+    });
+
     // Test API Handler
     $('#wpaisg-test-api').on('click', function (e) {
         e.preventDefault();

@@ -37,6 +37,7 @@ class WPAIServiceGenerator {
 		
         add_action( 'wp_ajax_wpaisg_generate_content', array( $this, 'wpaisg_handle_ajax_generate' ) );
         add_action( 'wp_ajax_wpaisg_check_updates', array( $this, 'wpaisg_handle_ajax_check_updates' ) );
+        add_action( 'wp_ajax_wpaisg_perform_update', array( $this, 'wpaisg_handle_ajax_perform_update' ) );
         add_action( 'wp_ajax_wpaisg_test_api', array( $this, 'wpaisg_handle_ajax_test_api' ) );
     }
 
@@ -492,7 +493,7 @@ class WPAIServiceGenerator {
                 'status' => 'update_available',
                 'version' => $latest_version,
                 'message' => "Yeni sürüm mevcut: <strong>{$latest_version}</strong>",
-                'update_url' => admin_url( 'update-core.php' ) // Direct user to WP updates page
+                'zip_url' => $release['zipball_url']
             ) );
         } else {
              wp_send_json_success( array( 
@@ -501,6 +502,62 @@ class WPAIServiceGenerator {
                 'message' => "Eklentiniz güncel (v{$current_version})."
             ) );
         }
+    }
+
+    public function wpaisg_handle_ajax_perform_update() {
+        check_ajax_referer( 'wpaisg-generate-nonce', 'nonce' );
+
+        if ( ! current_user_can( 'update_plugins' ) ) {
+            wp_send_json_error( array( 'message' => 'Yetkiniz yok.' ) );
+        }
+
+        $zip_url = sanitize_url( $_POST['zip_url'] );
+        if ( empty( $zip_url ) ) {
+            wp_send_json_error( array( 'message' => 'İndirme adresi bulunamadı.' ) );
+        }
+
+        // 1. Download
+        require_once( ABSPATH . 'wp-admin/includes/file.php' );
+        require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+        
+        WP_Filesystem();
+        global $wp_filesystem;
+
+        $temp_file = download_url( $zip_url );
+
+        if ( is_wp_error( $temp_file ) ) {
+            wp_send_json_error( array( 'message' => 'İndirme hatası: ' . $temp_file->get_error_message() ) );
+        }
+
+        // 2. Unzip
+        $upgrade_folder = $wp_filesystem->wp_content_dir() . 'upgrade/wpaisg_temp/';
+        $wp_filesystem->delete( $upgrade_folder, true );
+        
+        $unzip_result = unzip_file( $temp_file, $upgrade_folder );
+        unlink( $temp_file );
+
+        if ( is_wp_error( $unzip_result ) ) {
+             wp_send_json_error( array( 'message' => 'Arşiv açılamadı: ' . $unzip_result->get_error_message() ) );
+        }
+
+        // 3. Move/Replace
+        $files = $wp_filesystem->dirlist( $upgrade_folder );
+        if ( empty( $files ) ) {
+             wp_send_json_error( array( 'message' => 'İndirilen paket boş çıktı.' ) );
+        }
+
+        $source_dir = $upgrade_folder . array_key_first( $files ) . '/';
+        $destination_dir = WPAISG_PATH;
+
+        $copy_result = copy_dir( $source_dir, $destination_dir );
+        
+        $wp_filesystem->delete( $upgrade_folder, true );
+
+        if ( is_wp_error( $copy_result ) ) {
+            wp_send_json_error( array( 'message' => 'Dosyalar kopyalanamadı: ' . $copy_result->get_error_message() ) );
+        }
+
+        wp_send_json_success( array( 'message' => 'Eklenti başarıyla güncellendi! Sayfa yenileniyor...' ) );
     }
 
     public function wpaisg_handle_ajax_test_api() {

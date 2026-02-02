@@ -2,6 +2,7 @@
 
 Bu WordPress eklentisi, **Google Gemini API** kullanarak yerel SEO uyumlu, kapsamlı hizmet sayfaları oluşturmanızı sağlar. Özellikle yerel işletmeler (tesisatçı, nakliyat, tamirci vb.) için optimize edilmiştir.
 
+
 ## Özellikler
 
 *   **Otomatik İçerik Üretimi:** Hizmet adı, lokasyon ve anahtar kelimeleri girerek saniyeler içinde taslak yazı oluşturun.
