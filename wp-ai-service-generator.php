@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WPAISG_VERSION', '1.0.4' );
+define( 'WPAISG_VERSION', '1.0.5' );
 define( 'WPAISG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPAISG_URL', plugin_dir_url( __FILE__ ) );
 
@@ -503,8 +503,17 @@ class WPAIServiceGenerator {
         
         $release = json_decode( wp_remote_retrieve_body( $response ), true );
         
-        if ( ! $release ) {
-            wp_send_json_error( array( 'message' => 'Sürüm bilgisi alınamadı.' ) );
+        if ( ! $release || isset( $release['message'] ) ) {
+            $error_msg = isset( $release['message'] ) ? $release['message'] : 'Bilinmeyen hata';
+            
+            // Check if it's "Not Found" error (no releases)
+            if ( strpos( $error_msg, 'Not Found' ) !== false ) {
+                wp_send_json_error( array( 
+                    'message' => 'Bu repo\'da henüz hiç Release yok. GitHub\'da bir release oluşturmanız gerekiyor. Detaylar için "github_release_guide.md" dosyasına bakın.' 
+                ) );
+            }
+            
+            wp_send_json_error( array( 'message' => 'Sürüm bilgisi alınamadı: ' . $error_msg ) );
         }
 
         $latest_version = $release['tag_name'];
