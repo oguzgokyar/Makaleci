@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WPAISG_VERSION', '1.0.8' );
+define( 'WPAISG_VERSION', '1.0.9' );
 define( 'WPAISG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPAISG_URL', plugin_dir_url( __FILE__ ) );
 
@@ -39,6 +39,7 @@ class WPAIServiceGenerator {
         add_action( 'wp_ajax_wpaisg_check_updates', array( $this, 'wpaisg_handle_ajax_check_updates' ) );
         add_action( 'wp_ajax_wpaisg_perform_update', array( $this, 'wpaisg_handle_ajax_perform_update' ) );
         add_action( 'wp_ajax_wpaisg_test_api', array( $this, 'wpaisg_handle_ajax_test_api' ) );
+        add_action( 'wp_ajax_wpaisg_update_post', array( $this, 'wpaisg_handle_ajax_update_post' ) );
     }
 
     public function enqueue_admin_scripts( $hook ) {
@@ -205,6 +206,7 @@ class WPAIServiceGenerator {
         wp_send_json_success( array( 
             'post_id' => $post_id,
             'title'   => sanitize_text_field( $result['title'] ),
+            'content' => $result['content'], // Send full content for editor
             'edit_url' => get_edit_post_link( $post_id, 'raw' ) 
         ) );
 	}
@@ -322,11 +324,35 @@ class WPAIServiceGenerator {
                     </form>
                 </div>
 
-                <!-- RIGHT PANEL: RESULT -->
+                <!-- RIGHT PANEL: RESULT + EDITOR -->
                 <div class="wpaisg-right-panel">
                     <div class="wpaisg-preview-header">Sonuç / Önizleme</div>
                     <div id="wpaisg-result">
                         <p class="description">Oluşturulan içerik ve durum bilgisi burada görünecektir.</p>
+                    </div>
+                    
+                    <!-- EDITOR SECTION (Hidden until content generated) -->
+                    <div id="wpaisg-editor-section" style="display:none; margin-top: 20px;">
+                        <h3 id="wpaisg-editor-title" style="margin-bottom: 10px;"></h3>
+                        <?php 
+                        $settings = array(
+                            'textarea_name' => 'wpaisg_editor_content',
+                            'textarea_rows' => 20,
+                            'teeny' => false,
+                            'media_buttons' => true,
+                            'tinymce' => array(
+                                'toolbar1' => 'formatselect,bold,italic,bullist,numlist,blockquote,link,unlink',
+                                'toolbar2' => 'undo,redo,removeformat',
+                            ),
+                        );
+                        wp_editor( '', 'wpaisg_editor', $settings );
+                        ?>
+                        <input type="hidden" id="wpaisg-current-post-id" value="" />
+                        <p class="submit">
+                            <button type="button" id="wpaisg-save-content" class="button button-primary">Değişiklikleri Kaydet</button>
+                            <button type="button" id="wpaisg-open-editor" class="button button-secondary" style="margin-left: 10px;">WordPress Editörde Aç</button>
+                        </p>
+                        <div id="wpaisg-save-result"></div>
                     </div>
                 </div>
             </div>
@@ -611,6 +637,34 @@ class WPAIServiceGenerator {
         }
 
         wp_send_json_success( array( 'message' => "Bağlantı Başarılı! ($model yanıt verdi)" ) );
+    }
+
+    public function wpaisg_handle_ajax_update_post() {
+        check_ajax_referer( 'wpaisg-generate-nonce', 'nonce' );
+
+        $post_id = intval( $_POST['post_id'] );
+        $content = wp_kses_post( $_POST['content'] );
+        $title = sanitize_text_field( $_POST['title'] );
+
+        if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
+            wp_send_json_error( array( 'message' => 'Yetkiniz yok veya geçersiz post.' ) );
+        }
+
+        $updated = wp_update_post( array(
+            'ID' => $post_id,
+            'post_title' => $title,
+            'post_content' => $content,
+            'post_status' => 'draft'
+        ) );
+
+        if ( is_wp_error( $updated ) ) {
+            wp_send_json_error( array( 'message' => $updated->get_error_message() ) );
+        }
+
+        wp_send_json_success( array( 
+            'message' => 'İçerik güncellendi!',
+            'edit_url' => get_edit_post_link( $post_id, 'raw' )
+        ) );
     }
 }
 

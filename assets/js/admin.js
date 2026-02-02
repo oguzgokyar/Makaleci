@@ -29,10 +29,26 @@ jQuery(document).ready(function ($) {
             if (response && response.success) {
                 var editUrl = response.data.edit_url;
                 var title = response.data.title || 'Yeni Yazı';
+                var content = response.data.content || '';
+                var postId = response.data.post_id;
+
                 var message = '<h3>Taslak Oluşturuldu!</h3>' +
                     '<p><strong>' + title + '</strong></p>' +
-                    '<p><a href="' + editUrl + '" target="_blank" class="button button-primary">Taslağı Düzenle</a></p>';
+                    '<p><a href="' + editUrl + '" target="_blank" class="button button-primary">WordPress\'te Aç</a></p>';
                 $result.html(message).addClass('wpaisg-result-box wpaisg-success-box');
+
+                // Load into editor
+                $('#wpaisg-editor-title').text(title);
+                $('#wpaisg-current-post-id').val(postId);
+
+                // Set content in TinyMCE
+                if (typeof tinymce !== 'undefined' && tinymce.get('wpaisg_editor')) {
+                    tinymce.get('wpaisg_editor').setContent(content);
+                } else {
+                    $('#wpaisg_editor').val(content);
+                }
+
+                $('#wpaisg-editor-section').slideDown();
             } else {
                 var errorMsg = (response && response.data && response.data.message) ? response.data.message : 'Bilinmeyen bir hata oluştu.';
                 if (typeof response === 'string') {
@@ -143,11 +159,59 @@ jQuery(document).ready(function ($) {
                 $result.html('<span style="color: green;">' + response.data.message + '</span>');
             } else {
                 var errorMsg = (response && response.data && response.data.message) ? response.data.message : 'Hata oluştu.';
-                $result.html('<span style="color: red;">' + errorMsg + '</span>');
+                $result.html('<span style="color: red;">Hata: ' + (response.data ? response.data.message : 'Bilinmeyen hata') + '</span>');
             }
         }).fail(function () {
             $btn.prop('disabled', false).text(originalText);
-            $result.html('<span style="color: red;">Sunucu bağlantı hatası.</span>');
+            $result.html('<span style="color: red;">Sunucu ile bağlantı kurulamadı.</span>');
         });
+    });
+
+    // Save Content Button
+    $('#wpaisg-save-content').on('click', function () {
+        var $btn = $(this);
+        var originalText = $btn.text();
+        var postId = $('#wpaisg-current-post-id').val();
+        var title = $('#wpaisg-editor-title').text();
+        var content = '';
+
+        // Get content from TinyMCE
+        if (typeof tinymce !== 'undefined' && tinymce.get('wpaisg_editor')) {
+            content = tinymce.get('wpaisg_editor').getContent();
+        } else {
+            content = $('#wpaisg_editor').val();
+        }
+
+        $btn.prop('disabled', true).text('Kaydediliyor...');
+
+        $.post(wpaisg_ajax.ajax_url, {
+            action: 'wpaisg_update_post',
+            nonce: wpaisg_ajax.nonce,
+            post_id: postId,
+            title: title,
+            content: content
+        }, function (response) {
+            $btn.prop('disabled', false).text(originalText);
+
+            if (response && response.success) {
+                $('#wpaisg-save-result').html('<span style="color: green;">' + response.data.message + '</span>');
+                setTimeout(function () {
+                    $('#wpaisg-save-result').html('');
+                }, 3000);
+            } else {
+                $('#wpaisg-save-result').html('<span style="color: red;">Hata: ' + (response.data ? response.data.message : 'Bilinmeyen hata') + '</span>');
+            }
+        }).fail(function () {
+            $btn.prop('disabled', false).text(originalText);
+            $('#wpaisg-save-result').html('<span style="color: red;">Sunucu ile bağlantı kurulamadı.</span>');
+        });
+    });
+
+    // Open in WordPress Editor Button
+    $('#wpaisg-open-editor').on('click', function () {
+        var postId = $('#wpaisg-current-post-id').val();
+        if (postId) {
+            window.open(wpaisg_ajax.ajax_url.replace('admin-ajax.php', 'post.php?post=' + postId + '&action=edit'), '_blank');
+        }
     });
 });
