@@ -87,3 +87,65 @@
 .wpaisg-check-updates-btn {
     margin-top: 10px !important;
 }
+
+/* Prompt Template Editor */
+.wpaisg-prompt-editor {
+    width: 100%;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background: #f9f9f9;
+    resize: vertical;
+}
+
+.wpaisg-prompt-editor:focus {
+    border-color: #2271b1;
+    background: #fff;
+    outline: none;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+/* Variables Card */
+.wpaisg-variables-card {
+    background: #f0f6fc;
+    border-left: 4px solid #2271b1;
+    padding: 15px 20px;
+    margin: 15px 0;
+    border-radius: 4px;
+}
+
+.wpaisg-variables-card h3 {
+    color: #1d2327;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.wpaisg-variables-card ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.wpaisg-variables-card li {
+    padding: 5px 0;
+    color: #50575e;
+    font-size: 13px;
+}
+
+.wpaisg-variables-card code {
+    background: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    color: #d63384;
+    font-weight: 600;
+    border: 1px solid #e0e0e0;
+}
+
+#wpaisg-prompt-char-count {
+    font-size: 12px;
+    font-style: italic;
+}

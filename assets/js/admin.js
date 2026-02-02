@@ -212,4 +212,50 @@ jQuery(document).ready(function ($) {
             window.open(wpaisg_ajax.ajax_url.replace('admin-ajax.php', 'post.php?post=' + postId + '&action=edit'), '_blank');
         }
     });
+
+    // Prompt Template Reset Handler
+    $('#wpaisg-reset-prompt').on('click', function (e) {
+        e.preventDefault();
+
+        if (!confirm('Prompt şablonunu varsayılan haline sıfırlamak istediğinize emin misiniz?')) {
+            return;
+        }
+
+        var $btn = $(this);
+        var originalText = $btn.text();
+
+        $btn.prop('disabled', true).html('<span class="wpaisg-spinner"></span> Sıfırlanıyor...');
+
+        $.post(wpaisg_ajax.ajax_url, {
+            action: 'wpaisg_reset_prompt',
+            nonce: wpaisg_ajax.nonce
+        }, function (response) {
+            $btn.prop('disabled', false).html(originalText);
+
+            if (response && response.success) {
+                $('#wpaisg-prompt-template').val(response.data.prompt);
+                updatePromptCharCount();
+                alert('Prompt şablonu varsayılan haline sıfırlandı!');
+            } else {
+                alert('Hata: ' + (response.data ? response.data.message : 'Bilinmeyen hata'));
+            }
+        }).fail(function () {
+            $btn.prop('disabled', false).html(originalText);
+            alert('Sunucu ile bağlantı kurulamadı.');
+        });
+    });
+
+    // Prompt Character Count
+    function updatePromptCharCount() {
+        var text = $('#wpaisg-prompt-template').val();
+        var charCount = text.length;
+        var lineCount = text.split('\n').length;
+        $('#wpaisg-prompt-char-count').text(charCount + ' karakter, ' + lineCount + ' satır');
+    }
+
+    // Update count on load and change
+    if ($('#wpaisg-prompt-template').length) {
+        updatePromptCharCount();
+        $('#wpaisg-prompt-template').on('input', updatePromptCharCount);
+    }
 });

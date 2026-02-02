@@ -40,6 +40,7 @@ class WPAIServiceGenerator {
         add_action( 'wp_ajax_wpaisg_perform_update', array( $this, 'wpaisg_handle_ajax_perform_update' ) );
         add_action( 'wp_ajax_wpaisg_test_api', array( $this, 'wpaisg_handle_ajax_test_api' ) );
         add_action( 'wp_ajax_wpaisg_update_post', array( $this, 'wpaisg_handle_ajax_update_post' ) );
+        add_action( 'wp_ajax_wpaisg_reset_prompt', array( $this, 'wpaisg_handle_ajax_reset_prompt' ) );
     }
 
     public function enqueue_admin_scripts( $hook ) {
@@ -103,6 +104,7 @@ class WPAIServiceGenerator {
         // GitHub Settings
         register_setting( 'wpaisg_settings_group', 'wpaisg_github_repo' );
         register_setting( 'wpaisg_settings_group', 'wpaisg_github_token' );
+        register_setting( 'wpaisg_settings_group', 'wpaisg_prompt_template' );
 	}
 
     public function wpaisg_handle_ajax_generate() {
@@ -128,32 +130,20 @@ class WPAIServiceGenerator {
         $company_address = get_option( 'wpaisg_company_address' );
         $company_phone = get_option( 'wpaisg_company_phone' );
         $language = get_option( 'wpaisg_language', 'Turkish' );
-        $company_phone = get_option( 'wpaisg_company_phone' );
-        $language = get_option( 'wpaisg_language', 'Turkish' );
         $model = trim( get_option( 'wpaisg_model', 'gemini-2.5-flash' ) ); // Default to 2.5 Flash
 
-        // Construct Prompt
-        $prompt = "You are an expert Local SEO Copywriter. Write a WordPress Service Page content in {$language}.\n";
-        $prompt .= "Service: {$service}\n";
-        $prompt .= "Location: {$location}\n";
-        $prompt .= "Keywords: {$keywords}\n";
-        $prompt .= "Company Name: {$company_name}\n";
-        $prompt .= "Address: {$company_address}\n";
-        $prompt .= "Phone: {$company_phone}\n\n";
+        // Construct Prompt from Template
+        $prompt_template = get_option( 'wpaisg_prompt_template' );
+        if ( empty( $prompt_template ) ) {
+            $prompt_template = $this->get_default_prompt_template();
+        }
 
-        $prompt .= "Requirements:\n";
-        $prompt .= "1. Return ONLY a JSON object with two keys: 'title' and 'content'.\n";
-        $prompt .= "2. 'title': A catchy, SEO-optimized title including the Service and Location.\n";
-        $prompt .= "3. 'content': The full HTML body content (do NOT include <html> or <body> tags, just the inner content).\n";
-        $prompt .= "4. Content Structure:\n";
-        $prompt .= "   - Engaging Introduction (mentioning the location).\n";
-        $prompt .= "   - Why Choose {$company_name}? (Bulleted list).\n";
-        $prompt .= "   - Service Details (H2 headers).\n";
-        $prompt .= "   - Frequently Asked Questions (FAQ) relevant to the service.\n";
-        $prompt .= "   - A Call to Action section with the phone number.\n";
-        $prompt .= "5. IMPORTANT: Include a <script type='application/ld+json'> block at the end with LocalBusiness Schema markup properly filled with the company details and service info.\n";
-        $prompt .= "6. Use HTML tags like <h1>, <h2>, <p>, <ul>, <li>, <strong>.\n";
-        $prompt .= "7. Do NOT include markdown formatting (```json) in the response, just raw JSON.\n";
+        // Replace template variables
+        $prompt = str_replace(
+            array( '{service}', '{location}', '{keywords}', '{company_name}', '{company_address}', '{company_phone}', '{language}' ),
+            array( $service, $location, $keywords, $company_name, $company_address, $company_phone, $language ),
+            $prompt_template
+        );
 
         // Call Gemini API
         $response = $this->call_gemini_api( $api_key, $model, $prompt );
@@ -224,7 +214,7 @@ class WPAIServiceGenerator {
             ),
             'generationConfig' => array(
                 'temperature' => 0.7,
-                'maxOutputTokens' => 4000
+                'maxOutputTokens' => 8000
             ) 
         );
 
@@ -371,6 +361,7 @@ class WPAIServiceGenerator {
                 <h2 class="nav-tab-wrapper">
                     <a href="#general" class="nav-tab nav-tab-active" onclick="wpaisg_switch_tab(event, 'general')">Genel Ayarlar</a>
                     <a href="#nap" class="nav-tab" onclick="wpaisg_switch_tab(event, 'nap')">Firma Bilgileri (Local SEO)</a>
+                    <a href="#prompt" class="nav-tab" onclick="wpaisg_switch_tab(event, 'prompt')">Prompt Şablonu</a>
                     <a href="#github" class="nav-tab" onclick="wpaisg_switch_tab(event, 'github')">Güncellemeler</a>
                 </h2>
 
@@ -419,6 +410,36 @@ class WPAIServiceGenerator {
                         <tr valign="top">
                             <th scope="row">Telefon</th>
                             <td><input type="text" name="wpaisg_company_phone" value="<?php echo esc_attr( get_option('wpaisg_company_phone') ); ?>" class="regular-text" /></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div id="tab-prompt" class="wpaisg-tab-content" style="display:none;">
+                    <p class="description">AI'ya gönderilen prompt şablonunu buradan özelleştirebilirsiniz. Aşağıdaki değişkenleri kullanabilirsiniz:</p>
+                    
+                    <div class="wpaisg-variables-card">
+                        <h3 style="margin-top: 0;">📌 Kullanılabilir Değişkenler</h3>
+                        <ul>
+                            <li><code>{service}</code> - Hizmet adı</li>
+                            <li><code>{location}</code> - Lokasyon bilgisi</li>
+                            <li><code>{keywords}</code> - SEO anahtar kelimeler</li>
+                            <li><code>{company_name}</code> - Firma adı</li>
+                            <li><code>{company_address}</code> - Firma adresi</li>
+                            <li><code>{company_phone}</code> - Firma telefonu</li>
+                            <li><code>{language}</code> - İçerik dili</li>
+                        </ul>
+                    </div>
+
+                    <table class="form-table">
+                        <tr valign="top">
+                            <th scope="row">Prompt Şablonu</th>
+                            <td>
+                                <textarea name="wpaisg_prompt_template" id="wpaisg-prompt-template" class="wpaisg-prompt-editor" rows="20"><?php echo esc_textarea( get_option('wpaisg_prompt_template', $this->get_default_prompt_template()) ); ?></textarea>
+                                <p class="description">
+                                    <button type="button" id="wpaisg-reset-prompt" class="button button-secondary">🔄 Varsayılana Sıfırla</button>
+                                    <span id="wpaisg-prompt-char-count" style="margin-left: 15px; color: #666;"></span>
+                                </p>
+                            </td>
                         </tr>
                     </table>
                 </div>
@@ -665,6 +686,42 @@ class WPAIServiceGenerator {
             'message' => 'İçerik güncellendi!',
             'edit_url' => get_edit_post_link( $post_id, 'raw' )
         ) );
+    }
+
+    public function wpaisg_handle_ajax_reset_prompt() {
+        check_ajax_referer( 'wpaisg-generate-nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'message' => 'Yetkiniz yok.' ) );
+        }
+
+        $default_prompt = $this->get_default_prompt_template();
+        wp_send_json_success( array( 'prompt' => $default_prompt ) );
+    }
+
+    private function get_default_prompt_template() {
+        return "You are an expert Local SEO Copywriter. Write a WordPress Service Page content in {language}.\n" .
+               "Service: {service}\n" .
+               "Location: {location}\n" .
+               "Keywords: {keywords}\n" .
+               "Company Name: {company_name}\n" .
+               "Address: {company_address}\n" .
+               "Phone: {company_phone}\n\n" .
+               "Requirements:\n" .
+               "1. Return ONLY a JSON object with two keys: 'title' and 'content'.\n" .
+               "2. 'title': A catchy, SEO-optimized title including the Service and Location.\n" .
+               "3. 'content': The full HTML body content (do NOT include <html> or <body> tags, just the inner content).\n" .
+               "4. Content Structure:\n" .
+               "   - Engaging Introduction (mentioning the location).\n" .
+               "   - Why Choose {company_name}? (Bulleted list).\n" .
+               "   - Service Details (H2 headers).\n" .
+               "   - Frequently Asked Questions (FAQ) relevant to the service - AT LEAST 5 FAQs with COMPLETE answers.\n" .
+               "   - A Call to Action section with the phone number.\n" .
+               "5. CRITICAL: The content MUST be COMPLETE and FULLY FINISHED. Do NOT truncate or leave anything incomplete. All sections must be fully written with complete sentences and paragraphs.\n" .
+               "6. CRITICAL: ALL FAQ answers MUST be complete with full explanations. Do not cut off mid-sentence.\n" .
+               "7. IMPORTANT: Include a <script type='application/ld+json'> block at the end with LocalBusiness Schema markup properly filled with the company details and service info.\n" .
+               "8. Use HTML tags like <h1>, <h2>, <p>, <ul>, <li>, <strong>.\n" .
+               "9. Do NOT include markdown formatting (```json) in the response, just raw JSON.\n";
     }
 }
 
