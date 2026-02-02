@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WPAISG_VERSION', '1.0.7' );
+define( 'WPAISG_VERSION', '1.0.8' );
 define( 'WPAISG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPAISG_URL', plugin_dir_url( __FILE__ ) );
 
@@ -595,7 +595,7 @@ class WPAIServiceGenerator {
         check_ajax_referer( 'wpaisg-generate-nonce', 'nonce' );
 
         $api_key = get_option( 'wpaisg_gemini_api_key' );
-        $model = trim( get_option( 'wpaisg_model', 'gemini-1.5-flash' ) );
+        $model = trim( get_option( 'wpaisg_model', 'gemini-2.5-flash' ) );
 
         if ( empty( $api_key ) ) {
             wp_send_json_error( array( 'message' => 'API Anahtarı girilmemiş.' ) );
