@@ -99,7 +99,12 @@ class WPAIServiceGenerator {
         register_setting( 'wpaisg_settings_group', 'wpaisg_github_token' );
 	}
 
-	public function wpaisg_handle_ajax_generate() {
+    public function wpaisg_handle_ajax_generate() {
+        // Clear any previous output to ensure clean JSON response
+        if (ob_get_length()) {
+            ob_clean();
+        }
+        
         check_ajax_referer( 'wpaisg-generate-nonce', 'nonce' );
 
         $service = sanitize_text_field( $_POST['service'] );
@@ -216,9 +221,10 @@ class WPAIServiceGenerator {
         $args = array(
             'body'        => json_encode( $body ),
             'headers'     => array( 'Content-Type' => 'application/json' ),
-            'timeout'     => 60,
+            'timeout'     => 120, // Increased timeout for long content generation
             'method'      => 'POST',
-            'data_format' => 'body'
+            'data_format' => 'body',
+            'sslverify'   => apply_filters( 'https_local_ssl_verify', true ) // Allow overriding for local dev
         );
 
         $response = wp_remote_post( $url, $args );
@@ -231,7 +237,8 @@ class WPAIServiceGenerator {
         $body = wp_remote_retrieve_body( $response );
 
         if ( $code !== 200 ) {
-            return new WP_Error( 'api_error', "API Hatası ($code): " . $body );
+            error_log( 'WPAISG API Error: ' . $code . ' - ' . $body );
+            return new WP_Error( 'api_error', "API Hatası ($code): " . wp_remote_retrieve_response_message($response) );
         }
 
         $data = json_decode( $body, true );

@@ -1,5 +1,5 @@
-jQuery(document).ready(function($) {
-    $('#wpaisg-generator-form').on('submit', function(e) {
+jQuery(document).ready(function ($) {
+    $('#wpaisg-generator-form').on('submit', function (e) {
         e.preventDefault();
 
         var $form = $(this);
@@ -19,18 +19,22 @@ jQuery(document).ready(function($) {
             category: $('#wpaisg-category').val()
         };
 
-        $.post(wpaisg_ajax.ajax_url, data, function(response) {
+        $.post(wpaisg_ajax.ajax_url, data, function (response) {
             $submitBtn.prop('disabled', false).text('İçerik Oluştur');
 
-            if (response.success) {
+            if (response && response.success) {
                 var editUrl = response.data.edit_url;
                 var message = '<strong>Başarılı!</strong> Yazı taslak olarak oluşturuldu. <a href="' + editUrl + '" target="_blank">Düzenlemek için tıklayın</a>';
                 $result.html('<p>' + message + '</p>').addClass('notice notice-success');
             } else {
-                var errorMsg = response.data.message || 'Bir hata oluştu.';
+                var errorMsg = (response && response.data && response.data.message) ? response.data.message : 'Bilinmeyen bir hata oluştu. Lütfen konsolu kontrol edin veya tekrar deneyin.';
+                if (typeof response === 'string') {
+                    console.error('Sunucu Yanıtı:', response);
+                    errorMsg += ' (Sunucu geçersiz yanıt döndürdü)';
+                }
                 $result.html('<p>Hata: ' + errorMsg + '</p>').addClass('notice notice-error');
             }
-        }).fail(function() {
+        }).fail(function () {
             $submitBtn.prop('disabled', false).text('İçerik Oluştur');
             $result.html('<p>Sunucu hatası veya zaman aşımı.</p>').addClass('notice notice-error');
         });
